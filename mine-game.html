@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黄金矿工扫雷</title>
+    <style>
+        :root {
+            --primary: #ffd700;
+            --danger: #ff4444;
+            --bg: #1a1a1a;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 3px;
+            margin-bottom: 20px;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: #333;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        .cell.revealed {
+            background: #444;
+            cursor: default;
+        }
+        .cell.gold {
+            background: var(--primary);
+            color: #000;
+        }
+        .cell.mine {
+            background: var(--danger);
+            animation: pulse 0.8s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        button {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div>金币：<span id="score">0</span></div>
+            <div>剩余雷数：<span id="mines">10</span></div>
+            <button onclick="initGame()">新游戏</button>
+        </div>
+        <div class="grid" id="grid"></div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 10;
+        const TOTAL_MINES = 10;
+        let score = 0;
+        let minesLeft = TOTAL_MINES;
+        
+        function initGame() {
+            score = 0;
+            minesLeft = TOTAL_MINES;
+            document.getElementById('score').textContent = score;
+            document.getElementById('mines').textContent = minesLeft;
+            document.getElementById('message').textContent = '';
+            
+            // 初始化网格
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+            
+            // 创建地雷地图
+            const mineMap = Array(GRID_SIZE*GRID_SIZE).fill(0)
+                .map((_, i) => i < TOTAL_MINES ? -1 : 0)
+                .sort(() => Math.random() - 0.5);
+            
+            // 计算周围地雷数
+            for(let i = 0; i < GRID_SIZE; i++) {
+                for(let j = 0; j < GRID_SIZE; j++) {
+                    if(mineMap[i*GRID_SIZE+j] === -1) continue;
+                    let count = 0;
+                    for(let dx = -1; dx <= 1; dx++) {
+                        for(let dy = -1; dy <= 1; dy++) {
+                            const x = i + dx;
+                            const y = j + dy;
+                            if(x >=0 && x < GRID_SIZE && y >=0 && y < GRID_SIZE) {
+                                if(mineMap[x*GRID_SIZE+y] === -1) count++;
+                            }
+                        }
+                    }
+                    mineMap[i*GRID_SIZE+j] = count;
+                }
+            }
+
+            // 创建单元格
+            mineMap.forEach((value, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.value = value;
+                cell.dataset.index = index;
+                
+                cell.addEventListener('click', () => revealCell(cell, value));
+                cell.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if(!cell.classList.contains('revealed')) {
+                        cell.classList.toggle('marked');
+                        minesLeft = cell.classList.contains('marked') ? 
+                            Math.max(0, minesLeft - 1) : 
+                            Math.min(TOTAL_MINES, minesLeft + 1);
+                        document.getElementById('mines').textContent = minesLeft;
+                    }
+                });
+                
+                grid.appendChild(cell);
+            });
+        }
+
+        function revealCell(cell, value) {
+            if(cell.classList.contains('revealed') || cell.classList.contains('marked')) return;
+            
+            cell.classList.add('revealed');
+            
+            if(value === -1) {
+                cell.classList.add('mine');
+                document.getElementById('message').textContent = '💥 踩中地雷！游戏结束！';
+                setTimeout(initGame, 2000);
+            } else {
+                const gold = Math.floor(Math.random() * 3) + 1;
+                score += gold * (value + 1);
+                document.getElementById('score').textContent = score;
+                cell.textContent = `💰x${gold}`;
+                cell.classList.add('gold');
+                
+                if(score >= 100) {
+                    document.getElementById('message').textContent = '🎉 成功挖掘到宝藏！';
+                    setTimeout(initGame, 2000);
+                }
+            }
+        }
+
+        // 开始新游戏
+        initGame();
+    </script>
+</body>
+</html>
